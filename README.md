@@ -6,4 +6,4 @@ Test project for job application
     
 ## Run App
 
-   node index.js
+    node index.js
