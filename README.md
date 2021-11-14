@@ -1,7 +1,11 @@
 # TestNaisJob
-Test project for job application
 
-## Instal dependencies
+## Project Dependencies
+
+- **Node.js**
+https://nodejs.org/en/
+
+## Instal project dependencies
     npm install
     
 ## Run App
