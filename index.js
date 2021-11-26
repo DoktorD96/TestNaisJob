@@ -1,9 +1,13 @@
+// #MODULES REQUIRE
+
 const express = require('express');
 const session = require('express-session');
 const MongoDbStore = require('connect-mongo');
-var multer = require('multer'); // mutlipart form data
-var upload = multer();
-var routes = require('./routes');
+const multer = require('multer'); // mutlipart form data
+
+const upload = multer();
+const routes = require('./routes');
+
 require('./config/database.js'); //connect to DB
 require('dotenv').config();
 
@@ -24,14 +28,7 @@ app.use(
 );
 
 
-require('./config/passport');
 
-/**
- * -------------- PASSPORT AUTHENTICATION ----------------
- */
-
-app.use(passport.initialize());
-app.use(passport.session());
 
 
 // #SUPPORT FOR:
@@ -42,6 +39,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ extended: true }));
 app.use(upload.array());
 
+require('./config/passport');
+
+/**
+ * -------------- PASSPORT AUTHENTICATION ----------------
+ */
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 /**
  * -------------- ROUTES ----------------

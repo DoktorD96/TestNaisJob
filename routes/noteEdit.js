@@ -1,16 +1,21 @@
 var express = require('express');
 var router = express.Router();
+
 //# CUSTOM MODULES
-var mongoUtil = require('../modules/mongoUtil.js');
 var middleWare = require('../modules/MiddleWare.js');
+
+//# Models
+const Note = require("../models/Notes");
+
 router.post('/NoteEdit', middleWare.middleWare, async function(req, res) {
     try {
-        var DB = await mongoUtil.connectToServer();
+
         if (typeof req.body.name === "string" &&
             typeof req.body.text === "string" &&
             typeof req.body.time === "string" && req.body.time.trim().length == 10 &&
             typeof req.body.noteid === "string" && req.body.noteid.trim().length > 0 && parseInt(req.body.noteid.trim()) > 0
         ) {
+
             var noteid = parseInt(req.body.noteid.trim());
 
             if (noteid > 99999) {
@@ -20,6 +25,15 @@ router.post('/NoteEdit', middleWare.middleWare, async function(req, res) {
                     type: 'internal'
                 });
             }
+
+            if (noteid < 1) {
+                return res.status(500).send({
+                    status: 500,
+                    message: 'NoteID can\'t be 0 or less.',
+                    type: 'internal'
+                });
+            }
+
             var insertO = {};
             insertO.name = req.body.name.trim();
             insertO.text = req.body.text.trim();
@@ -43,8 +57,8 @@ router.post('/NoteEdit', middleWare.middleWare, async function(req, res) {
 
 
 
-            const CheckNoteEgxists = await DB.notes.count({
-                "userid": LOGINID,
+            const CheckNoteEgxists = await Note.count({
+                "userid": req.session.passport.user,
                 "increment": noteid,
                 "deleted": false
             });
@@ -82,22 +96,59 @@ router.post('/NoteEdit', middleWare.middleWare, async function(req, res) {
                 } else {
                     datestring = datestring + "-0" + parseInt(timearr[2]);
                 }
+
+
                 insertO.time = datestring;
                 insertO.time_milis = new Date(datestring).getTime();
                 insertO.time_date = new Date(datestring);
                 insertO.deleted = false;
                 insertO.sent = false;
 
-
-                const result = await DB.notes.updateOne({ "userid": LOGINID }, { $set: insertO });
-                if (result.acknowledged) {
-                    return res.status(202).json({ message: 'Note Updated OK.', error: false });
-                } else {
+                try {
+                    // a document instance
+                    Note.find({
+                        increment: noteid,
+                        userid: req.session.passport.user,
+                        deleted: false
+                    }, function(err, notes) {
+                        try {
+                            if (err) {
+                                return res.status(500).send({
+                                    status: 500,
+                                    message: 'Note Update Failed.',
+                                    type: 'internal'
+                                });
+                            }
+                            for (var key in insertO) {
+                                if (insertO.hasOwnProperty(key)) {
+                                    notes[0][key] = insertO[key];
+                                }
+                            }
+                            // save model to database
+                            notes[0].save(function(err, user) {
+                                if (err) {
+                                    return res.status(500).send({
+                                        status: 500,
+                                        message: 'Note Update Failed.',
+                                        type: 'internal'
+                                    });
+                                }
+                                return res.status(202).json({ message: 'Note Updated OK.', error: false });
+                            });
+                        } catch (e) {
+                            return res.status(500).send({
+                                status: 500,
+                                message: 'Note Update Failed.',
+                                type: 'internal'
+                            });
+                        }
+                    });
+                } catch (e) {
                     return res.status(500).send({
                         status: 500,
                         message: 'Note Update Failed.',
                         type: 'internal'
-                    })
+                    });
                 }
 
             } else {
@@ -117,7 +168,6 @@ router.post('/NoteEdit', middleWare.middleWare, async function(req, res) {
 
 
     } catch (e) {
-        console.log(e);
         return res.status(500).send({
             status: 500,
             message: 'Note Update Failed.',

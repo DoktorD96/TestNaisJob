@@ -1,7 +1,9 @@
 var express = require('express');
 var router = express.Router();
+
 //# CUSTOM MODULES
 const emailValid = require('../modules/emailValidation.js');
+
 //# Models
 const User = require("../models/Users");
 
@@ -86,14 +88,21 @@ router.post('/Edit', middleWare.middleWare, async function(req, res) {
         }
 
         // #Validation inputs end
-
         editObj.deleted = false;
+        delete editObj.passrepeat;
 
-        const result = await DB.users.updateOne({ "_id": ObjectId(LOGINID) }, { $set: editObj });
-
-        if (result.acknowledged) {
-            return res.status(202).json({ message: 'Edit Profile OK', error: false });
-        } else {
+        try {
+            User.findByIdAndUpdate(req.session.passport.user, editObj, (err, user) => {
+                if (err) {
+                    return res.status(500).send({
+                        status: 500,
+                        message: 'Edit Profile Failed',
+                        type: 'internal'
+                    })
+                };
+                return res.status(202).json({ message: 'Edit Profile OK', error: false });
+            });
+        } catch (e) {
             return res.status(500).send({
                 status: 500,
                 message: 'Edit Profile Failed',

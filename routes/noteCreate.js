@@ -1,13 +1,16 @@
 var express = require('express');
 var router = express.Router();
+
 //# CUSTOM MODULES
-var mongoUtil = require('../modules/mongoUtil.js');
 var middleWare = require('../modules/MiddleWare.js');
 
+//# Models
+const Note = require("../models/Notes");
+const Notes = require('../models/Notes');
 
 router.post('/NoteCreate', middleWare.middleWare, async function(req, res) {
     try {
-        var DB = await mongoUtil.connectToServer();
+
         if (typeof req.body.name === "string" &&
             typeof req.body.text === "string" &&
             typeof req.body.time === "string" && req.body.time.trim().length == 10
@@ -30,17 +33,14 @@ router.post('/NoteCreate', middleWare.middleWare, async function(req, res) {
             if (!(insertO.text.length > 3 && insertO.text.length < 500)) {
                 return res.status(500).send({
                     status: 500,
-                    message: 'Note text can between 3 and 500 characters.',
+                    message: 'Note text can be between 3 and 500 characters.',
                     type: 'internal'
                 });
             }
 
             // #Validation inputs end
 
-            insertO.userid = LOGINID;
-            insertO.created = new Date().toISOString().substr(0, 10);
-            insertO.created_milis = new Date().getTime();
-            insertO.created_date = new Date();
+            insertO.userid = req.session.passport.user;
             insertO.sent = false;
 
             // # SUPPORT BOTH 2012-02-02 && 2012/02/02
@@ -78,9 +78,9 @@ router.post('/NoteCreate', middleWare.middleWare, async function(req, res) {
                 // I find this more suitable
 
                 var increment = 1;
-                const incrementCheck = await DB.notes.find({
-                    userid: LOGINID
-                }).sort({ increment: -1 }).limit(1).toArray();
+                const incrementCheck = await Notes.find({
+                    userid: req.session.passport.user
+                }).sort({ increment: -1 }).limit(1);
 
                 if (incrementCheck.length != 0) {
                     increment = incrementCheck[0].increment + 1;
@@ -88,15 +88,28 @@ router.post('/NoteCreate', middleWare.middleWare, async function(req, res) {
 
                 insertO.increment = increment;
 
-                const result = await DB.notes.insertOne(insertO);
-                if (result.acknowledged) {
-                    return res.status(202).json({ message: 'New Note Created.', error: false });
-                } else {
+                // a document instance
+                const NewNote = new Note(insertO);
+
+                // save model to database
+                try {
+                    NewNote.save(function(err, user) {
+                        if (err) {
+                            return res.status(500).send({
+                                status: 500,
+                                message: 'Note Creation Failed.',
+                                type: 'internal'
+                            });
+                        }
+                        return res.status(202).json({ message: 'New Note Created.', error: false });
+                    });
+
+                } catch (e) {
                     return res.status(500).send({
                         status: 500,
                         message: 'Note Creation Failed.',
                         type: 'internal'
-                    })
+                    });
                 }
 
             } else {
@@ -116,7 +129,6 @@ router.post('/NoteCreate', middleWare.middleWare, async function(req, res) {
 
 
     } catch (e) {
-        console.log(e);
         return res.status(500).send({
             status: 500,
             message: 'Note Creation Failed.',

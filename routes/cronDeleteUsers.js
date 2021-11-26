@@ -1,26 +1,32 @@
-var express = require('express');
-var router = express.Router();
-//# CUSTOM MODULES
-var mongoUtil = require('../modules/mongoUtil.js');
+const express = require('express');
+const router = express.Router();
+
+//# Models
+const User = require("../models/Users");
+
 require('dotenv').config();
 
-var CRONJOB_GETAUTH = process.env.CRONJOB_GETAUTH;
+const CRONJOB_GETAUTH = process.env.CRONJOB_GETAUTH;
 
 router.get('/CronDeleteUsers', async function(req, res) {
     try {
-        var DB = await mongoUtil.connectToServer();
         if (req.query.auth === CRONJOB_GETAUTH) {
+
             const query = {
                 deleted: true
             };
-            const DeletedUsers = await DB.users.find(query).toArray();
+
+            const DeletedUsers = await User.find(query);
+
             if (DeletedUsers.length == 0) {
                 return res.status(202).send({
                     status: 202,
                     message: 'There are no Users do delete',
                 });
             }
-            const result = await DB.users.deleteMany(query);
+
+            const result = await User.deleteMany(query);
+
             if (result.deletedCount > 0) {
                 return res.status(202).send({
                     status: 202,
@@ -34,6 +40,7 @@ router.get('/CronDeleteUsers', async function(req, res) {
                     type: 'internal'
                 });
             }
+
         } else {
             return res.status(500).send({
                 status: 500,
@@ -42,7 +49,6 @@ router.get('/CronDeleteUsers', async function(req, res) {
             });
         }
     } catch (e) {
-        console.log(e);
         return res.status(500).send({
             status: 500,
             message: 'Delete Users Failed',

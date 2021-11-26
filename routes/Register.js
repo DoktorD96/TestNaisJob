@@ -1,5 +1,5 @@
-var express = require('express');
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
 //# CUSTOM MODULES
 const emailValid = require('../modules/emailValidation.js');
 //# Models
@@ -7,7 +7,7 @@ const User = require("../models/Users");
 
 router.post('/Register', async function(req, res) {
     try {
-        var DB = await mongoUtil.connectToServer();
+
         if (!(typeof req.body.name === "string" &&
                 typeof req.body.email === "string" &&
                 typeof req.body.pass === "string" &&
@@ -71,7 +71,7 @@ router.post('/Register', async function(req, res) {
         // #Validation inputs end
 
 
-        const CheckName = await DB.users.count({
+        const CheckName = await User.count({
             name: doc.name
         });
 
@@ -84,7 +84,7 @@ router.post('/Register', async function(req, res) {
             })
         }
 
-        const CheckEmail = await DB.users.count({
+        const CheckEmail = await User.count({
             email: doc.email
         });
 
@@ -97,24 +97,37 @@ router.post('/Register', async function(req, res) {
             })
         }
 
-        const result = await DB.users.insertOne(doc);
-        if (result.acknowledged) {
-            return res.status(202).json({ message: 'Registration OK', error: false });
-        } else {
+        // a document instance
+        const NewUser = new User(doc);
+
+        // save model to database
+        try {
+
+            NewUser.save(function(err, user) {
+                if (err) {
+                    return res.status(500).send({
+                        status: 500,
+                        message: 'Registration Failed',
+                        type: 'internal'
+                    });
+                }
+                return res.status(202).json({ message: 'Registration OK', error: false });
+            });
+
+        } catch (e) {
             return res.status(500).send({
                 status: 500,
                 message: 'Registration Failed',
                 type: 'internal'
-            })
+            });
         }
-
     } catch (e) {
         return res.status(500).send({
             status: 500,
             message: 'Invalid Registration Data',
             code: "invalid_input",
             type: 'internal'
-        })
+        });
     }
 });
 

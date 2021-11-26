@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 var Mailgun = require('mailgun-js');
 var mailgun = new Mailgun({
     apiKey: process.env.MAILGUN_API,

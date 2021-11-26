@@ -1,20 +1,23 @@
-var express = require('express');
-var router = express.Router();
-var mongoUtil = require('../modules/mongoUtil.js');
-var sendEmail = require('../modules/sendEmail.js');
+const express = require('express');
+const router = express.Router();
+
+//# CUSTOM MODULES
+const sendEmail = require('../modules/sendEmail.js');
+const Notes = require('../models/Notes');
+
 require('dotenv').config();
 
-var CRONJOB_GETAUTH = process.env.CRONJOB_GETAUTH;
+const CRONJOB_GETAUTH = process.env.CRONJOB_GETAUTH;
 
 router.get('/CronJob', async function(req, res) {
     try {
         if (req.query.auth === CRONJOB_GETAUTH) {
-            var DB = await mongoUtil.connectToServer();
-            const SentNotes = await DB.notes.find({
+
+            const SentNotes = await Notes.find({
                 time: new Date().toISOString().substr(0, 10),
                 sent: false,
                 deleted: false
-            }).toArray();
+            });
 
 
             if (SentNotes.length > 0) {
@@ -57,15 +60,15 @@ router.get('/CronJob', async function(req, res) {
                             from: 'TODO APP REMINDER <noreply@emailnotification.online>',
                             to: email,
                             subject: `Note reminder: ${SentNotes[i].name}`,
-                            html: "This Email is sent as a reminder from TODO app.\n" +
-                                "\n" +
-                                "Note: <b>" + SentNotes[i].name + "</b>\n" +
-                                "\n" +
-                                "Created date: <b>" + SentNotes[i].created + "</b>\n" +
-                                "\n" +
-                                "Notify date: <b>" + SentNotes[i].time + "</b>\n" +
-                                "\n" +
-                                "...\n"
+                            html: "This Email is sent as a reminder from TODO app.<br/>" +
+                                "<br/>" +
+                                "Note: <b>" + SentNotes[i].name + "</b><br/>" +
+                                "<br/>" +
+                                "Created date: <b>" + SentNotes[i].created + "</b><br/>" +
+                                "<br/>" +
+                                "Notify date: <b>" + SentNotes[i].time + "</b><br/>" +
+                                "<br/>" +
+                                "...<br/>"
                         }
                         if (await sendEmail.emailSend(msg) == true) {
                             emailsend = true;
@@ -78,11 +81,35 @@ router.get('/CronJob', async function(req, res) {
                 } catch (e) {
                     console.log(e);
                 }
+
                 // update email send status
-                await NOTES.updateOne({ "userid": SentNotes[i].userid, "deleted": false }, { $set: { sent: emailsend } }, );
+                await NOTES.updateOne({
+                    userid: SentNotes[i].userid,
+                    increment: SentNotes[i].increment,
+                    deleted: false
+                }, { $set: { sent: emailsend } });
+
+                try {
+                    // a document instance
+                    Notes.findOne({
+                        increment: noteid,
+                        userid: req.session.passport.user,
+                        deleted: false
+                    }, function(err, note) {
+                        try {
+                            if (!err) {
+                                note.sent = emailsend;
+                                // save model to database
+                                note.save();
+                            }
+                        } catch (e) {}
+                    });
+                } catch (e) {}
+
             }
 
             return res.status(202).json({ message: 'Emails Sent OK.', error: false });
+
         } else {
 
             return res.status(500).send({
